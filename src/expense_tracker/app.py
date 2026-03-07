@@ -5,9 +5,6 @@ from expense_tracker.page import (
     analysis_page,
     settings_page,
 )
-from expense_tracker.dummy_data import seed_dummy_data
-
-seed_dummy_data()
 
 with st.sidebar:
     st.title("Expense Tracker")

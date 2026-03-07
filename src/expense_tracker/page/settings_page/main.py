@@ -40,7 +40,9 @@ def _render_people_settings(config: dict) -> dict:
     for i, person in enumerate(people):
         col1, col2 = st.columns([4, 1])
         with col1:
-            new_name = st.text_input(f"Person {i + 1}", value=person, key=f"person_name_{i}")
+            new_name = st.text_input(
+                f"Person {i + 1}", value=person, key=f"person_name_{i}"
+            )
             updated_people.append(new_name)
         with col2:
             st.write("")
@@ -50,7 +52,9 @@ def _render_people_settings(config: dict) -> dict:
                     to_remove.append(i)
 
     if to_remove:
-        updated_people = [p for idx, p in enumerate(updated_people) if idx not in to_remove]
+        updated_people = [
+            p for idx, p in enumerate(updated_people) if idx not in to_remove
+        ]
         config["people"] = updated_people
         config["incomes"] = {p: incomes.get(p, 0) for p in updated_people}
         save_config(config)
@@ -82,7 +86,9 @@ def _render_split_settings(config: dict) -> dict:
     method = st.radio(
         "How should expenses be split?",
         options=["equal", "income_proportion"],
-        format_func=lambda x: "Split equally" if x == "equal" else "Split by income proportion",
+        format_func=lambda x: "Split equally"
+        if x == "equal"
+        else "Split by income proportion",
         index=0 if split_method == "equal" else 1,
         key="split_method_radio",
     )
@@ -103,9 +109,12 @@ def _render_split_settings(config: dict) -> dict:
 
         total = sum(new_incomes.values())
         if total > 0:
-            st.caption("Proportions: " + " | ".join(
-                f"{p}: {v / total * 100:.1f}%" for p, v in new_incomes.items()
-            ))
+            st.caption(
+                "Proportions: "
+                + " | ".join(
+                    f"{p}: {v / total * 100:.1f}%" for p, v in new_incomes.items()
+                )
+            )
 
         if new_incomes != incomes or method != split_method:
             config["split_method"] = method
@@ -163,7 +172,9 @@ def _render_data_management():
 
     if transactions:
         df = pd.DataFrame(transactions)
-        df["tags"] = df["tags"].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
+        df["tags"] = df["tags"].apply(
+            lambda x: ", ".join(x) if isinstance(x, list) else x
+        )
         csv_bytes = df.to_csv(index=False).encode("utf-8")
         st.download_button(
             label="Export All Transactions as CSV",
