@@ -81,6 +81,11 @@ def _render_filters(df: pd.DataFrame, people: list[str]) -> pd.DataFrame:
             "Person", people, default=people, key="edit_people"
         )
 
+        all_tags_in_data = sorted(set(tag for tags in df["tags"] for tag in tags))
+        selected_tags = st.multiselect(
+            "Tags", all_tags_in_data, default=all_tags_in_data, key="edit_tags"
+        )
+
         min_amt = float(df["amount"].min())
         max_amt = float(df["amount"].max())
         if min_amt < max_amt:
@@ -100,6 +105,15 @@ def _render_filters(df: pd.DataFrame, people: list[str]) -> pd.DataFrame:
 
     if selected_people:
         df = df[df["person"].isin(selected_people)]
+
+    if all_tags_in_data and len(selected_tags) < len(all_tags_in_data):
+        df = df[
+            df["tags"].apply(
+                lambda tags: any(t in selected_tags for t in tags)
+                if tags
+                else not selected_tags
+            )
+        ]
 
     df = df[(df["amount"] >= amount_range[0]) & (df["amount"] <= amount_range[1])]
     return df
