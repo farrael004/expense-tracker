@@ -89,13 +89,12 @@ def _cloud_save(key: str, data: str) -> None:
 
 
 def load_config() -> dict:
-    if not CONFIG_FILE.exists():
-        remote = _cloud_load("config.json")
-        if remote is not None:
-            CONFIG_FILE.write_text(remote, encoding="utf-8")
-        else:
-            save_config(DEFAULT_CONFIG)
-            return DEFAULT_CONFIG.copy()
+    remote = _cloud_load("config.json")
+    if remote is not None:
+        CONFIG_FILE.write_text(remote, encoding="utf-8")
+    elif not CONFIG_FILE.exists():
+        save_config(DEFAULT_CONFIG)
+        return DEFAULT_CONFIG.copy()
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -108,12 +107,11 @@ def save_config(config: dict) -> None:
 
 
 def load_transactions() -> list[dict]:
-    if not TRANSACTIONS_FILE.exists():
-        remote = _cloud_load("transactions.json")
-        if remote is not None:
-            TRANSACTIONS_FILE.write_text(remote, encoding="utf-8")
-        else:
-            return []
+    remote = _cloud_load("transactions.json")
+    if remote is not None:
+        TRANSACTIONS_FILE.write_text(remote, encoding="utf-8")
+    elif not TRANSACTIONS_FILE.exists():
+        return []
     with open(TRANSACTIONS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -126,12 +124,11 @@ def save_transactions(transactions: list[dict]) -> None:
 
 
 def load_settlements() -> list[dict]:
-    if not SETTLEMENTS_FILE.exists():
-        remote = _cloud_load("settlements.json")
-        if remote is not None:
-            SETTLEMENTS_FILE.write_text(remote, encoding="utf-8")
-        else:
-            return []
+    remote = _cloud_load("settlements.json")
+    if remote is not None:
+        SETTLEMENTS_FILE.write_text(remote, encoding="utf-8")
+    elif not SETTLEMENTS_FILE.exists():
+        return []
     with open(SETTLEMENTS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
