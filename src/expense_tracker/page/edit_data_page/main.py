@@ -23,15 +23,13 @@ def render_page():
         return
 
     edited = st.data_editor(
-        df[
-            ["id", "date", "description", "amount", "person", "tags_str", "settled"]
-        ].rename(
+        df[["id", "date", "description", "amount", "person", "tags", "settled"]].rename(
             columns={
                 "date": "Date",
                 "description": "Description",
                 "amount": "Amount ($)",
                 "person": "Person",
-                "tags_str": "Tags",
+                "tags": "Tags",
                 "settled": "Settled",
             }
         ),
@@ -46,7 +44,10 @@ def render_page():
                 "Amount ($)", min_value=0, format="$%.2f"
             ),
             "Person": st.column_config.SelectboxColumn("Person", options=people),
-            "Tags": st.column_config.TextColumn("Tags"),
+            "Tags": st.column_config.MultiselectColumn(
+                "Tags",
+                options=all_tags,
+            ),
             "Settled": st.column_config.CheckboxColumn("Settled"),
         },
         num_rows="dynamic",
@@ -62,9 +63,7 @@ def _build_dataframe(transactions: list[dict]) -> pd.DataFrame:
     df = pd.DataFrame(transactions)
     df["date"] = pd.to_datetime(df["date"])
     df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
-    df["tags_str"] = df["tags"].apply(
-        lambda x: ", ".join(x) if isinstance(x, list) else str(x)
-    )
+    df["tags"] = df["tags"].apply(lambda x: list(x) if isinstance(x, list) else [])
     return df
 
 
@@ -121,8 +120,8 @@ def _save_edits(edited: pd.DataFrame, original_transactions: list[dict]) -> None
             txn["description"] = str(row["Description"])
             txn["amount"] = float(row["Amount ($)"])
             txn["person"] = str(row["Person"])
-            raw_tags = row.get("Tags", "")
-            txn["tags"] = [t.strip() for t in str(raw_tags).split(",") if t.strip()]
+            raw_tags = row.get("Tags", [])
+            txn["tags"] = list(raw_tags) if isinstance(raw_tags, (list, tuple)) else []
             txn["settled"] = bool(row.get("Settled", False))
 
     remaining = [t for t in original_transactions if t["id"] in edited_ids]
