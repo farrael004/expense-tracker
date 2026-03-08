@@ -79,15 +79,22 @@ def _render_unsettled_table(unsettled: list[dict], people: list[str], balances: 
 
     display_cols = ["date", "description", "amount", "person", "tags"]
     st.dataframe(
-        df[display_cols].rename(columns={"date": "Date", "description": "Description",
-                                          "amount": "Amount ($)", "person": "Person", "tags": "Tags"}),
-        use_container_width=True,
+        df[display_cols].rename(
+            columns={
+                "date": "Date",
+                "description": "Description",
+                "amount": "Amount ($)",
+                "person": "Person",
+                "tags": "Tags",
+            }
+        ),
+        width="stretch",
         hide_index=True,
     )
 
     st.markdown(f"**Total unsettled: ${df['amount'].sum():,.2f}**")
 
-    if st.button("Mark All as Settled", type="primary"):
+    if st.button("Mark All as settled", type="primary"):
         net = {p: round(balances.get(p, 0), 2) for p in people}
         creditors = [(p, v) for p, v in net.items() if v > 0]
         debtors = [(p, v) for p, v in net.items() if v < 0]
@@ -103,7 +110,9 @@ def _render_unsettled_table(unsettled: list[dict], people: list[str], balances: 
                 amount=transfer,
                 transaction_ids=txn_ids,
             )
-            st.success(f"Settlement recorded: {debtor} pays {creditor} ${transfer:,.2f}")
+            st.success(
+                f"Settlement recorded: {debtor} pays {creditor} ${transfer:,.2f}"
+            )
         else:
             record_settlement(
                 payer=people[0],
@@ -125,7 +134,14 @@ def _render_settlement_history(settlements: list[dict]):
         df = df.sort_values("date", ascending=False)
         df["amount"] = df["amount"].apply(lambda x: f"${x:,.2f}")
         st.dataframe(
-            df.rename(columns={"date": "Date", "payer": "Payer", "payee": "Payee", "amount": "Amount"}),
-            use_container_width=True,
+            df.rename(
+                columns={
+                    "date": "Date",
+                    "payer": "Payer",
+                    "payee": "Payee",
+                    "amount": "Amount",
+                }
+            ),
+            width="stretch",
             hide_index=True,
         )
