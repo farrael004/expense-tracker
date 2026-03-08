@@ -5,10 +5,22 @@ from expense_tracker.cloud.base import CloudStorageProvider
 
 
 class S3Provider(CloudStorageProvider):
-    def __init__(self, bucket: str, prefix: str = "") -> None:
+    def __init__(
+        self,
+        bucket: str,
+        prefix: str = "",
+        aws_access_key_id: str | None = None,
+        aws_secret_access_key: str | None = None,
+        aws_region: str | None = None,
+    ) -> None:
         self._bucket = bucket
         self._prefix = prefix.rstrip("/") + "/" if prefix else ""
-        self._client = boto3.client("s3")
+        self._client = boto3.client(
+            "s3",
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region,
+        )
 
     def _full_key(self, key: str) -> str:
         return f"{self._prefix}{key}"

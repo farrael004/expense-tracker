@@ -35,16 +35,23 @@ def _get_cloud_config() -> dict:
         import streamlit as st
 
         section = st.secrets.get("cloud", {})
+        aws = st.secrets.get("aws", {})
         return {
             "provider": str(section.get("provider", "")).lower(),
             "s3_bucket": str(section.get("s3_bucket_name", "")),
             "s3_prefix": str(section.get("s3_key_prefix", "")),
+            "aws_access_key_id": str(aws.get("aws_access_key_id", "")),
+            "aws_secret_access_key": str(aws.get("aws_secret_access_key", "")),
+            "aws_region": str(aws.get("aws_default_region", "")),
         }
     except Exception:
         return {
             "provider": os.environ.get("EXPENSE_TRACKER_CLOUD_PROVIDER", "").lower(),
             "s3_bucket": os.environ.get("S3_BUCKET_NAME", ""),
             "s3_prefix": os.environ.get("S3_KEY_PREFIX", ""),
+            "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID", ""),
+            "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY", ""),
+            "aws_region": os.environ.get("AWS_DEFAULT_REGION", ""),
         }
 
 
@@ -57,7 +64,13 @@ def _get_cloud_provider():
             raise ValueError(
                 "cloud.s3_bucket_name secret is required for the S3 provider."
             )
-        return S3Provider(bucket=cfg["s3_bucket"], prefix=cfg["s3_prefix"])
+        return S3Provider(
+            bucket=cfg["s3_bucket"],
+            prefix=cfg["s3_prefix"],
+            aws_access_key_id=cfg["aws_access_key_id"] or None,
+            aws_secret_access_key=cfg["aws_secret_access_key"] or None,
+            aws_region=cfg["aws_region"] or None,
+        )
     return None
 
 
