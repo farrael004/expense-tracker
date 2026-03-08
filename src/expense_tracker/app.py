@@ -1,4 +1,7 @@
 import streamlit as st
+
+st.set_page_config(page_title="Expense Tracker", page_icon="💰")
+
 from expense_tracker.page import (
     upload_page,
     splitting_page,
