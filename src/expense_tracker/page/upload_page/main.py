@@ -1,3 +1,4 @@
+import fnmatch
 import uuid
 import streamlit as st
 import pandas as pd
@@ -151,6 +152,21 @@ def render_page():
                 return
 
             df_work["tags"] = [list(bulk_tags)] * len(df_work)
+
+            skip_patterns = config.get("skip_patterns", [])
+            if skip_patterns:
+
+                def _matches_any(desc: str) -> bool:
+                    desc_lower = str(desc).strip().lower()
+                    return any(
+                        fnmatch.fnmatch(desc_lower, p.lower()) for p in skip_patterns
+                    )
+
+                is_skipped = df_work["description"].apply(_matches_any)
+                n_skipped = int(is_skipped.sum())
+                if n_skipped:
+                    st.info(f"{n_skipped} row(s) removed by auto-skip patterns.")
+                df_work = df_work[~is_skipped].reset_index(drop=True)
 
             existing = load_transactions()
             existing_keys = {

@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
         "Travel",
         "Other",
     ],
+    "skip_patterns": [],
 }
 
 

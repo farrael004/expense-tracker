@@ -24,6 +24,8 @@ def render_page():
     st.divider()
     config = _render_tag_settings(config)
     st.divider()
+    config = _render_skip_patterns(config)
+    st.divider()
     _render_data_management()
 
 
@@ -161,6 +163,57 @@ def _render_tag_settings(config: dict) -> dict:
             st.rerun()
         elif new_tag in tags:
             st.warning("Tag already exists.")
+
+    return config
+
+
+def _render_skip_patterns(config: dict) -> dict:
+    st.subheader("Auto-Skip Patterns")
+    patterns = config.get("skip_patterns", [])
+
+    st.caption(
+        "Transactions whose description matches any of these glob patterns will be "
+        "automatically removed when uploading a CSV. "
+        "Use `*` to match any characters, `?` to match a single character. "
+        "Matching is case-insensitive."
+    )
+
+    patterns_to_remove = []
+    if patterns:
+        cols = st.columns(4)
+        for i, pattern in enumerate(patterns):
+            with cols[i % 4]:
+                col_pat, col_del = st.columns([3, 1])
+                with col_pat:
+                    st.code(pattern, language=None)
+                with col_del:
+                    if st.button("✕", key=f"del_pattern_{i}"):
+                        patterns_to_remove.append(pattern)
+    else:
+        st.info("No auto-skip patterns configured.")
+
+    if patterns_to_remove:
+        patterns = [p for p in patterns if p not in patterns_to_remove]
+        config["skip_patterns"] = patterns
+        save_config(config)
+        st.rerun()
+
+    new_pattern = st.text_input(
+        "New pattern (e.g. `payment*`, `*refund*`)",
+        key="new_skip_pattern",
+    )
+    if st.button("Add Pattern", key="add_skip_pattern"):
+        stripped = new_pattern.strip()
+        if not stripped:
+            st.warning("Pattern cannot be empty.")
+        elif stripped in patterns:
+            st.warning("Pattern already exists.")
+        else:
+            patterns.append(stripped)
+            config["skip_patterns"] = patterns
+            save_config(config)
+            st.success(f"Pattern `{stripped}` added.")
+            st.rerun()
 
     return config
 
