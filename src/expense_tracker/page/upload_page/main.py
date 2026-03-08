@@ -1,6 +1,4 @@
 import uuid
-import io
-from typing import Hashable
 import streamlit as st
 import pandas as pd
 from expense_tracker.storage import (
@@ -67,7 +65,7 @@ def render_page():
                         }
                     )
                     save_transactions(existing)
-                    st.success("Entry saved.")
+                    st.toast("1 entry added.", icon="✅")
 
     with tab_csv:
         uploaded_file = st.file_uploader("Upload a bank statement CSV", type=["csv"])
@@ -81,31 +79,36 @@ def render_page():
                 st.error(f"Could not read CSV: {e}")
                 return
 
-            st.subheader("Preview")
-            st.dataframe(df_raw.head(10), width="stretch")
-
             st.subheader("Column Mapping")
             columns = list(df_raw.columns)
 
+            col_lower = {c.lower(): i for i, c in enumerate(columns)}
+            default_date_idx = col_lower.get("date", 0)
+            default_desc_idx = col_lower.get("description", 0)
+            default_amount_idx = col_lower.get("amount", 0)
+
             col1, col2, col3 = st.columns(3)
             with col1:
-                date_col = st.selectbox("Date column", columns, key="date_col")
+                date_col = st.selectbox(
+                    "Date column", columns, index=default_date_idx, key="date_col"
+                )
             with col2:
-                desc_col = st.selectbox("Description column", columns, key="desc_col")
+                desc_col = st.selectbox(
+                    "Description column",
+                    columns,
+                    index=default_desc_idx,
+                    key="desc_col",
+                )
             with col3:
-                amount_col = st.selectbox("Amount column", columns, key="amount_col")
+                amount_col = st.selectbox(
+                    "Amount column", columns, index=default_amount_idx, key="amount_col"
+                )
 
             person = st.selectbox(
                 "This statement belongs to", people, key="upload_person"
             )
 
             st.subheader("Tag Assignment")
-
-            bulk_tags = st.multiselect(
-                "Apply these tags to ALL transactions",
-                options=tags,
-                key="bulk_tags",
-            )
 
             new_tag_input = st.text_input(
                 "Create a new tag (press Enter to add)", key="new_tag_input"
@@ -118,9 +121,17 @@ def render_page():
                     st.success(f"Tag '{new_tag_input}' added.")
                     st.rerun()
 
-            use_per_row = st.checkbox(
-                "Override tags per individual transaction", value=False
+            use_bulk = st.checkbox(
+                "Apply the same tags to all transactions", value=False
             )
+            if use_bulk:
+                bulk_tags = st.multiselect(
+                    "Tags to apply to all transactions",
+                    options=tags,
+                    key="bulk_tags",
+                )
+            else:
+                bulk_tags = []
 
             try:
                 df_work = df_raw[[date_col, desc_col, amount_col]].copy()
@@ -135,22 +146,11 @@ def render_page():
                     errors="coerce",
                 )
                 df_work = df_work.dropna(subset=["amount"])
-                df_work["amount"] = df_work["amount"].abs()
             except Exception as e:
                 st.error(f"Error processing columns: {e}")
                 return
 
-            per_row_tags: dict[Hashable, list[str]] = {}
-            if use_per_row:
-                st.markdown("**Per-transaction tags**")
-                for i, row in df_work.iterrows():
-                    row_tags = st.multiselect(
-                        f"{row['date']} — {row['description']} (${row['amount']:.2f})",
-                        options=tags,
-                        default=bulk_tags,
-                        key=f"row_tags_{i}",
-                    )
-                    per_row_tags[i] = row_tags
+            df_work["tags"] = [list(bulk_tags)] * len(df_work)
 
             existing = load_transactions()
             existing_keys = {
@@ -162,34 +162,56 @@ def render_page():
                 for t in existing
             }
 
-            def get_tags_for(i: Hashable) -> list[str]:
-                return per_row_tags.get(i, bulk_tags) if use_per_row else bulk_tags
-
-            new_rows = []
-            duplicate_rows = []
-            for i, row in df_work.iterrows():
-                key = (
+            is_dup = df_work.apply(
+                lambda row: (
                     str(row["date"]),
                     str(row["description"]).strip().lower(),
                     round(float(row["amount"]), 2),
                 )
-                if key in existing_keys:
-                    duplicate_rows.append(row)
-                else:
-                    new_rows.append((i, row))
-
-            if duplicate_rows:
+                in existing_keys,
+                axis=1,
+            )
+            n_dups = int(is_dup.sum())
+            if n_dups:
                 st.warning(
-                    f"{len(duplicate_rows)} duplicate transaction(s) detected and will be skipped."
+                    f"{n_dups} duplicate transaction(s) detected and will be skipped."
                 )
 
-            st.markdown(f"**{len(new_rows)} new transaction(s) ready to import.**")
+            df_new = df_work[~is_dup].reset_index(drop=True)
+
+            st.subheader("Preview")
+            st.caption(
+                f"{len(df_new)} new transaction(s) ready to import. "
+                "Remove rows you don't want or edit values before saving."
+            )
+
+            edited = st.data_editor(
+                df_new,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                column_config={
+                    "date": st.column_config.DateColumn("Date"),
+                    "description": st.column_config.TextColumn("Description"),
+                    "amount": st.column_config.NumberColumn(
+                        "Amount ($)", format="$%.2f"
+                    ),
+                    "tags": st.column_config.MultiselectColumn(
+                        "Tags",
+                        options=tags,
+                    ),
+                },
+            )
 
             if st.button(
-                "Save Transactions", type="primary", disabled=len(new_rows) == 0
+                "Save Transactions", type="primary", disabled=len(edited) == 0
             ):
                 new_txns = []
-                for i, row in new_rows:
+                for _, row in edited.iterrows():
+                    raw_tags = row.get("tags", [])
+                    row_tags = (
+                        list(raw_tags) if isinstance(raw_tags, (list, tuple)) else []
+                    )
                     new_txns.append(
                         {
                             "id": str(uuid.uuid4()),
@@ -197,11 +219,14 @@ def render_page():
                             "description": str(row["description"]),
                             "amount": round(float(row["amount"]), 2),
                             "person": person,
-                            "tags": get_tags_for(i),
+                            "tags": row_tags,
                             "settled": False,
                             "settlement_id": None,
                         }
                     )
                 save_transactions(existing + new_txns)
-                st.success(f"Saved {len(new_txns)} transaction(s).")
+                st.toast(
+                    f"{len(new_txns)} entr{'y' if len(new_txns) == 1 else 'ies'} added.",
+                    icon="✅",
+                )
                 st.rerun()
