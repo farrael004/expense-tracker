@@ -18,7 +18,7 @@ def render_page():
     people = config["people"]
     tags = config["default_tags"]
 
-    tab_csv, tab_manual = st.tabs(["CSV Upload", "Manual Entry"])
+    tab_manual, tab_csv = st.tabs(["Manual Entry", "CSV Upload"])
 
     with tab_manual:
         with st.form("manual_entry_form"):

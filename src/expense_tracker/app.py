@@ -25,7 +25,7 @@ with st.sidebar:
     st.caption(f"Signed in as {st.user.email}")
 
     if "page" not in st.session_state:
-        st.session_state.page = "Analysis"
+        st.session_state.page = "Upload"
 
     if st.button(label="Upload", icon="⬆️", width="stretch"):
         st.session_state.page = "Upload"
