@@ -203,7 +203,7 @@ def render_page():
 
             edited = st.data_editor(
                 df_new,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 num_rows="dynamic",
                 column_config={
