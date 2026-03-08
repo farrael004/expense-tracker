@@ -37,6 +37,7 @@ def render_page():
         ),
         width="stretch",
         hide_index=True,
+        column_order=["Date", "Description", "Amount ($)", "Person", "Tags", "Settled"],
         column_config={
             "id": st.column_config.TextColumn("ID", disabled=True),
             "Date": st.column_config.DateColumn("Date"),
