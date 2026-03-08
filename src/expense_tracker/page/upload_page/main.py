@@ -153,6 +153,14 @@ def render_page():
 
             df_work["tags"] = [list(bulk_tags)] * len(df_work)
 
+            st.subheader("Preview")
+            caption_area = st.container()
+            force_positive = st.checkbox(
+                "Convert negative amounts to positive", value=False
+            )
+            if force_positive:
+                df_work["amount"] = df_work["amount"].abs()
+
             skip_patterns = config.get("skip_patterns", [])
             if skip_patterns:
 
@@ -195,11 +203,11 @@ def render_page():
 
             df_new = df_work[~is_dup].reset_index(drop=True)
 
-            st.subheader("Preview")
-            st.caption(
-                f"{len(df_new)} new transaction(s) ready to import. "
-                "Remove rows you don't want or edit values before saving."
-            )
+            with caption_area:
+                st.caption(
+                    f"{len(df_new)} new transaction(s) ready to import. "
+                    "Remove rows you don't want or edit values before saving."
+                )
 
             edited = st.data_editor(
                 df_new,
