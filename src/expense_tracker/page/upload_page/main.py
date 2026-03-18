@@ -105,6 +105,19 @@ def render_page():
                     "Amount column", columns, index=default_amount_idx, key="amount_col"
                 )
 
+            col_lower_map = {c.lower(): c for c in columns}
+            default_subdesc = col_lower_map.get("sub-description")
+            include_subdesc = st.checkbox(
+                "Include sub-description column", value=default_subdesc is not None
+            )
+            if include_subdesc:
+                default_subdesc_idx = columns.index(default_subdesc) if default_subdesc else 0
+                subdesc_col = st.selectbox(
+                    "Sub-description column", columns, index=default_subdesc_idx, key="subdesc_col"
+                )
+            else:
+                subdesc_col = None
+
             person = st.selectbox(
                 "This statement belongs to", people, key="upload_person"
             )
@@ -135,8 +148,14 @@ def render_page():
                 bulk_tags = []
 
             try:
-                df_work = df_raw[[date_col, desc_col, amount_col]].copy()
-                df_work.columns = ["date", "description", "amount"]
+                if subdesc_col:
+                    df_work = df_raw[
+                        [date_col, desc_col, amount_col, subdesc_col]
+                    ].copy()
+                    df_work.columns = ["date", "description", "amount", "sub_description"]
+                else:
+                    df_work = df_raw[[date_col, desc_col, amount_col]].copy()
+                    df_work.columns = ["date", "description", "amount"]
                 df_work["date"] = pd.to_datetime(
                     df_work["date"], format="mixed"
                 ).dt.date
@@ -147,6 +166,15 @@ def render_page():
                     errors="coerce",
                 )
                 df_work = df_work.dropna(subset=["amount"])
+                if subdesc_col:
+                    df_work["description"] = df_work.apply(
+                        lambda r: f"{r['description']} ({r['sub_description']})"
+                        if pd.notna(r["sub_description"])
+                        and str(r["sub_description"]).strip()
+                        else str(r["description"]),
+                        axis=1,
+                    )
+                    df_work = df_work.drop(columns=["sub_description"])
             except Exception as e:
                 st.error(f"Error processing columns: {e}")
                 return
