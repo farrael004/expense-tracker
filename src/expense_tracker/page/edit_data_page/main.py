@@ -22,6 +22,8 @@ def render_page():
         st.warning("No transactions match the current filters.")
         return
 
+    filtered_ids = set(df["id"].tolist())
+
     edited = st.data_editor(
         df[["id", "date", "description", "amount", "person", "tags", "settled"]].rename(
             columns={
@@ -54,7 +56,7 @@ def render_page():
     )
 
     if st.button("Save Changes", type="primary"):
-        _save_edits(edited, transactions)
+        _save_edits(edited, transactions, filtered_ids)
         st.success("Changes saved.")
         st.rerun()
 
@@ -119,7 +121,11 @@ def _render_filters(df: pd.DataFrame, people: list[str]) -> pd.DataFrame:
     return df
 
 
-def _save_edits(edited: pd.DataFrame, original_transactions: list[dict]) -> None:
+def _save_edits(
+    edited: pd.DataFrame,
+    original_transactions: list[dict],
+    filtered_ids: set,
+) -> None:
     txn_by_id = {t["id"]: t for t in original_transactions}
 
     edited_ids = set(edited["id"].dropna().tolist())
@@ -138,5 +144,10 @@ def _save_edits(edited: pd.DataFrame, original_transactions: list[dict]) -> None
             txn["tags"] = list(raw_tags) if isinstance(raw_tags, (list, tuple)) else []
             txn["settled"] = bool(row.get("Settled", False))
 
-    remaining = [t for t in original_transactions if t["id"] in edited_ids]
+    # Keep edited rows that remain + anything outside the filtered view (untouched)
+    remaining = [
+        t
+        for t in original_transactions
+        if t["id"] in edited_ids or t["id"] not in filtered_ids
+    ]
     save_transactions(remaining)

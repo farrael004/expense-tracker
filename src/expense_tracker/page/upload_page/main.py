@@ -111,9 +111,14 @@ def render_page():
                 "Include sub-description column", value=default_subdesc is not None
             )
             if include_subdesc:
-                default_subdesc_idx = columns.index(default_subdesc) if default_subdesc else 0
+                default_subdesc_idx = (
+                    columns.index(default_subdesc) if default_subdesc else 0
+                )
                 subdesc_col = st.selectbox(
-                    "Sub-description column", columns, index=default_subdesc_idx, key="subdesc_col"
+                    "Sub-description column",
+                    columns,
+                    index=default_subdesc_idx,
+                    key="subdesc_col",
                 )
             else:
                 subdesc_col = None
@@ -152,7 +157,12 @@ def render_page():
                     df_work = df_raw[
                         [date_col, desc_col, amount_col, subdesc_col]
                     ].copy()
-                    df_work.columns = ["date", "description", "amount", "sub_description"]
+                    df_work.columns = [
+                        "date",
+                        "description",
+                        "amount",
+                        "sub_description",
+                    ]
                 else:
                     df_work = df_raw[[date_col, desc_col, amount_col]].copy()
                     df_work.columns = ["date", "description", "amount"]
