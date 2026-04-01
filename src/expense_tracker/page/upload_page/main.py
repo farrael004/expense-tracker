@@ -69,7 +69,7 @@ def render_page():
                     st.toast("1 entry added.", icon="✅")
 
     with tab_csv:
-        uploaded_file = st.file_uploader("Upload a bank statement CSV", type=["csv"])
+        uploaded_file = st.file_uploader("Upload a bank statement CSV", type=["csv", "CSV"])
 
         if uploaded_file is None:
             st.info("Upload a CSV file to get started.")
