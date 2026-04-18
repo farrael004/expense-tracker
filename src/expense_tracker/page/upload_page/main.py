@@ -28,6 +28,9 @@ def render_page():
             )
             person_val = st.selectbox("Person", people, key="manual_person")
             tags_val = st.multiselect("Tags", options=tags, key="manual_tags")
+            settled_val = st.checkbox(
+                "Already settled", value=False, key="manual_settled"
+            )
             submitted = st.form_submit_button("Add Entry", type="primary")
 
         if submitted:
@@ -61,7 +64,7 @@ def render_page():
                             "amount": round(float(amount_val), 2),
                             "person": person_val,
                             "tags": tags_val,
-                            "settled": False,
+                            "settled": bool(settled_val),
                             "settlement_id": None,
                         }
                     )
@@ -190,12 +193,20 @@ def render_page():
                 return
 
             df_work["tags"] = [list(bulk_tags)] * len(df_work)
+            df_work["settled"] = False
 
             st.subheader("Preview")
             caption_area = st.container()
             force_positive = st.checkbox(
                 "Convert negative amounts to positive", value=False
             )
+            mark_all_settled = st.checkbox(
+                "Mark all imported items as already settled",
+                value=False,
+                key="mark_all_settled",
+            )
+            if mark_all_settled:
+                df_work["settled"] = True
             if force_positive:
                 df_work["amount"] = df_work["amount"].abs()
 
@@ -262,6 +273,7 @@ def render_page():
                         "Tags",
                         options=tags,
                     ),
+                    "settled": st.column_config.CheckboxColumn("Settled"),
                 },
             )
 
@@ -282,7 +294,7 @@ def render_page():
                             "amount": round(float(row["amount"]), 2),
                             "person": person,
                             "tags": row_tags,
-                            "settled": False,
+                            "settled": bool(row.get("settled", False)),
                             "settlement_id": None,
                         }
                     )
