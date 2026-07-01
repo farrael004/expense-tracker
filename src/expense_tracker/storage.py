@@ -182,16 +182,16 @@ def compute_balance(config: dict, transactions: list[dict]) -> dict[str, float]:
 
 def record_settlement(
     payer: str, payee: str, amount: float, transaction_ids: list[str]
-) -> None:
+) -> str:
     transactions = load_transactions()
-    for txn in transactions:
-        if txn["id"] in transaction_ids:
-            txn["settled"] = True
-            txn["settlement_id"] = None
-
+    settled_txns = []
     settlement_id = str(uuid.uuid4())
+    txn_ids_set = set(transaction_ids)
+
     for txn in transactions:
-        if txn["id"] in transaction_ids:
+        if txn["id"] in txn_ids_set:
+            settled_txns.append(txn.copy())
+            txn["settled"] = True
             txn["settlement_id"] = settlement_id
 
     save_transactions(transactions)
@@ -205,6 +205,8 @@ def record_settlement(
             "payee": payee,
             "amount": round(amount, 2),
             "transaction_ids": transaction_ids,
+            "transactions_backup": settled_txns,
         }
     )
     save_settlements(settlements)
+    return settlement_id

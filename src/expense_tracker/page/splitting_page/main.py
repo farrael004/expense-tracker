@@ -9,6 +9,106 @@ from expense_tracker.storage import (
 )
 
 
+@st.dialog("Confirm Settlement")
+def _show_settlement_dialog(
+    unsettled: list[dict], people: list[str], balances: dict
+):
+    st.write("This will mark all unsettled transactions as settled.")
+    st.write(f"**{len(unsettled)} transaction(s)** will be marked as settled.")
+
+    unsettled_total = sum(t["amount"] for t in unsettled)
+    st.write(f"**Total amount:** ${unsettled_total:,.2f}")
+
+    st.warning("This action cannot be undone.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Confirm", type="primary", use_container_width=True):
+            net = {p: round(balances.get(p, 0), 2) for p in people}
+            creditors = sorted(
+                [(p, v) for p, v in net.items() if v > 0], key=lambda x: -x[1]
+            )
+            debtors = sorted(
+                [(p, v) for p, v in net.items() if v < 0], key=lambda x: x[1]
+            )
+            txn_ids = [t["id"] for t in unsettled]
+
+            while creditors and debtors:
+                creditor, credit_amt = creditors[0]
+                debtor, debt_amt = debtors[0]
+                transfer = min(credit_amt, abs(debt_amt))
+                record_settlement(
+                    payer=debtor,
+                    payee=creditor,
+                    amount=transfer,
+                    transaction_ids=txn_ids,
+                )
+                credit_amt -= transfer
+                debt_amt += transfer
+                if credit_amt < 0.01:
+                    creditors.pop(0)
+                else:
+                    creditors[0] = (creditor, credit_amt)
+                if debt_amt > -0.01:
+                    debtors.pop(0)
+                else:
+                    debtors[0] = (debtor, debt_amt)
+
+            if not creditors and not debtors:
+                pass
+            elif txn_ids:
+                record_settlement(
+                    payer=people[0],
+                    payee=people[1] if len(people) > 1 else people[0],
+                    amount=0,
+                    transaction_ids=txn_ids,
+                )
+            st.session_state["settlement_confirmed"] = True
+            st.rerun()
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+
+@st.dialog("Settlement Details")
+def _show_settlement_details_dialog(settlement: dict):
+    st.subheader(f"Settlement on {settlement['date']}")
+    st.write(f"**{settlement['payer']}** pays **{settlement['payee']}**")
+    st.write(f"**Amount:** ${settlement['amount']:,.2f}")
+
+    st.divider()
+    st.write("**Transactions included in this settlement:**")
+
+    backup = settlement.get("transactions_backup", [])
+    if backup:
+        df = pd.DataFrame(backup)
+        if "tags" in df.columns:
+            df["tags"] = df["tags"].apply(
+                lambda x: ", ".join(x) if isinstance(x, list) else x
+            )
+        display_cols = ["date", "description", "amount", "person", "tags"]
+        df = df[[c for c in display_cols if c in df.columns]]
+        st.dataframe(
+            df.rename(
+                columns={
+                    "date": "Date",
+                    "description": "Description",
+                    "amount": "Amount ($)",
+                    "person": "Person",
+                    "tags": "Tags",
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+        st.write(f"**Total:** ${sum(t['amount'] for t in backup):,.2f}")
+    else:
+        st.info("No transaction backup available for this settlement.")
+
+    if st.button("Close", use_container_width=True):
+        st.rerun()
+
+
 def render_page():
     st.title("Bill Splitting")
 
@@ -95,33 +195,7 @@ def _render_unsettled_table(unsettled: list[dict], people: list[str], balances: 
     st.markdown(f"**Total unsettled: ${df['amount'].sum():,.2f}**")
 
     if st.button("Mark All as settled", type="primary"):
-        net = {p: round(balances.get(p, 0), 2) for p in people}
-        creditors = [(p, v) for p, v in net.items() if v > 0]
-        debtors = [(p, v) for p, v in net.items() if v < 0]
-        txn_ids = [t["id"] for t in unsettled]
-
-        if creditors and debtors:
-            creditor = creditors[0][0]
-            debtor = debtors[0][0]
-            transfer = min(creditors[0][1], abs(debtors[0][1]))
-            record_settlement(
-                payer=debtor,
-                payee=creditor,
-                amount=transfer,
-                transaction_ids=txn_ids,
-            )
-            st.success(
-                f"Settlement recorded: {debtor} pays {creditor} ${transfer:,.2f}"
-            )
-        else:
-            record_settlement(
-                payer=people[0],
-                payee=people[1] if len(people) > 1 else people[0],
-                amount=0,
-                transaction_ids=txn_ids,
-            )
-            st.success("All transactions marked as settled.")
-        st.rerun()
+        _show_settlement_dialog(unsettled, people, balances)
 
 
 def _render_settlement_history(settlements: list[dict]):
@@ -130,18 +204,22 @@ def _render_settlement_history(settlements: list[dict]):
         return
 
     with st.expander(f"View {len(settlements)} past settlement(s)"):
-        df = pd.DataFrame(settlements)[["date", "payer", "payee", "amount"]]
+        df = pd.DataFrame(settlements)[["id", "date", "payer", "payee", "amount"]]
         df = df.sort_values("date", ascending=False)
         df["amount"] = df["amount"].apply(lambda x: f"${x:,.2f}")
-        st.dataframe(
-            df.rename(
-                columns={
-                    "date": "Date",
-                    "payer": "Payer",
-                    "payee": "Payee",
-                    "amount": "Amount",
-                }
-            ),
-            width="stretch",
-            hide_index=True,
-        )
+
+        settlements_by_id = {s["id"]: s for s in settlements}
+
+        for _, row in df.iterrows():
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(
+                    f"**{row['date']}**: {row['payer']} pays {row['payee']} {row['amount']}"
+                )
+            with col2:
+                if st.button(
+                    "View", key=f"view_{row['id']}", use_container_width=True
+                ):
+                    settlement = settlements_by_id.get(row["id"])
+                    if settlement:
+                        _show_settlement_details_dialog(settlement)
