@@ -197,8 +197,8 @@ def render_page():
 
             st.subheader("Preview")
             caption_area = st.container()
-            force_positive = st.checkbox(
-                "Convert negative amounts to positive", value=False
+            invert_amounts = st.checkbox(
+                "Invert negative and positive amounts", value=False
             )
             mark_all_settled = st.checkbox(
                 "Mark all imported items as already settled",
@@ -207,8 +207,8 @@ def render_page():
             )
             if mark_all_settled:
                 df_work["settled"] = True
-            if force_positive:
-                df_work["amount"] = df_work["amount"].abs()
+            if invert_amounts:
+                df_work["amount"] = df_work["amount"] * -1
 
             skip_patterns = config.get("skip_patterns", [])
             if skip_patterns:
